@@ -3,29 +3,59 @@ package main
 import "core:fmt"
 import "core:encoding/json"
 import "http"
-// import "odinhttp/client"
 
-Test :: struct 
+// the json response from mods.vintagestory.at
+ModInfoResponse :: struct 
 {
     mod: struct 
     {
-        modid: int
+        modid: int,
+        releases: []struct 
+        {
+            modversion: string,
+            fileid: int,
+        }
     }
+}
+
+ModInfo :: struct 
+{
+    name: string,
+    modid: string,
+    version: string,
 }
 
 main :: proc()
 {
-    // res, err := client.get("https://mods.vintagestory.at/api/mod/xskills")
+    // response, ok := http.get("https://mods.vintagestory.at/api/mod/xskills")
 
-    // body, allocation, berr := client.response_body(&res)
-	// if berr != nil {
-	// 	fmt.printf("Error retrieving response body: %s", berr)
+    // defer http.destroy_response(&response)
+
+    // if !ok || response.status != 200
+    // {
+    //     fmt.println("could not make http request", response.message)
+    //     return
+    // }
+
+    // test: ModInfoResponse 
+    // unmarshal_err := json.unmarshal(response.body, &test)
+	// if unmarshal_err != nil {
+	// 	fmt.eprintln("Failed to parse the json file.")
+	// 	fmt.eprintln("Error:", unmarshal_err)
 	// 	return
 	// }
-	// defer client.body_destroy(body, allocation)
+	// // defer json.destroy_value(json_data)
 
-	// fmt.println(body)
-    response, ok := http.get("https://mods.vintagestory.at/api/mod/xskills")
+	// // Access the Root Level Object
+	// // root := json_data.(json.Object)
+
+    // // fmt.println(root["mod"].(json.Object)["modid"])
+
+    // fmt.println(test.mod.releases[0])
+
+    response, ok := http.get("https://mods.vintagestory.at/download?fileid=31694")
+
+    defer http.destroy_response(&response)
 
     if !ok || response.status != 200
     {
@@ -33,19 +63,5 @@ main :: proc()
         return
     }
 
-    test: Test 
-    unmarshal_err := json.unmarshal(response.body, &test)
-	if unmarshal_err != nil {
-		fmt.eprintln("Failed to parse the json file.")
-		fmt.eprintln("Error:", unmarshal_err)
-		return
-	}
-	// defer json.destroy_value(json_data)
-
-	// Access the Root Level Object
-	// root := json_data.(json.Object)
-
-    // fmt.println(root["mod"].(json.Object)["modid"])
-
-    fmt.println(test.mod.modid)
+    fmt.println(string(response.body))
 }

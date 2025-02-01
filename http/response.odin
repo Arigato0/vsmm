@@ -111,6 +111,11 @@ get_chunked_body :: proc(buffer: []byte) -> []byte
 
         chunk_length, _ := strconv.parse_int(len_str, 16)
 
+        if chunk_length < 0 
+        {
+            break
+        }
+
         end := rdr.cur + chunk_length
 
         strings.write_bytes(&body, buffer[rdr.cur : end])
