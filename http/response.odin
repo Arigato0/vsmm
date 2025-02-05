@@ -17,7 +17,22 @@ Response :: struct
 destroy_response :: proc(response: ^Response)
 {
     delete(response._buffer)
+
+    // only need to delete the body if it is chunked otherwise it will just be a slice of _buffer
+    if is_chunked(response.headers)
+    {
+        delete(response.body)
+    }
+
     delete(response.headers)
+}
+
+@(private="package")
+is_chunked :: proc(headers: Headers) -> bool
+{
+    encoding, has_encoding := headers["Transfer-Encoding"]
+
+    return has_encoding && encoding == "chunked" 
 }
 
 @(private="package")
@@ -43,7 +58,7 @@ parse_response_frame :: proc(buffer: []byte) -> (response: Response, ok: bool)
 
     response.headers = make(Headers)
 
-    for !reader.at_end(&rdr) 
+    for !reader.at_end(&rdr) && reader.peak(&rdr) != '\r'
     {
         key := reader.read_until(&rdr, ':')
 
@@ -56,15 +71,11 @@ parse_response_frame :: proc(buffer: []byte) -> (response: Response, ok: bool)
         reader.advance_and_sync(&rdr, 2)
 
         response.headers[key] = value
-
-        if reader.peak(&rdr) == '\r' do break
     }
 
     reader.advance_and_sync(&rdr, 2)
 
-    encoding, has_encoding := response.headers["Transfer-Encoding"]
-
-    if has_encoding && encoding == "chunked" 
+    if is_chunked(response.headers) 
     {
         response.body = get_chunked_body(buffer[rdr.cur:])
     }
@@ -81,14 +92,6 @@ parse_response_frame :: proc(buffer: []byte) -> (response: Response, ok: bool)
             response.body = buffer[rdr.cur : end]
         }
     }
-
-    // fmt.println(string(response.body))
-
-    // fmt.println(response.status)
-    // fmt.println(response.message)
-    // fmt.println(response.headers)
-
-    // fmt.println(rune(reader.peak(&rdr)))
 
     return response, true
 }

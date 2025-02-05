@@ -187,26 +187,22 @@ make_secure_request :: proc(using connection: Connection, url: Url, frame: []byt
 
     strings.builder_init(&result)
 
-    read: i32 = 1
-
+    // should be destroyed by a call to destroy_response because the other fields of the response struct
+    // will take a slice from this buffer and even the body if it is content-length
     res_buffer: strings.Builder 
 
     strings.builder_init(&res_buffer)
 
-    defer strings.builder_destroy(&res_buffer)
+    should_read := true
 
-    for read > 0
+    for should_read
     {
-        read = openssl.read(ssl, raw_data(buffer[:]), len(buffer))
+        n := openssl.read(ssl, raw_data(buffer[:]), len(buffer))
 
-        if read > 0 
-        {
-            strings.write_bytes(&res_buffer, buffer[:read])
-        }
+        should_read = n > 0
+
+        strings.write_bytes(&res_buffer, buffer[:n])
     }
-
-    // fmt.println(string(frame[:]))
-    // fmt.println(string(res_buffer.buf[:]))
 
     return parse_response_frame(res_buffer.buf[:])
 }
