@@ -30,28 +30,18 @@ ModInfo :: struct
 
 main :: proc()
 {
+    validate_config()
+
     handler: cmd.Handler
 
     cmd.init(&handler)
 
-    cmd.add_cmd(&handler, cmd.Cmd{
-        name = "config",
-        description = "a general purpose command for configuring the behavior of vsmm",
-        subcmds = []string{"vs_location", "yes"},
-        exec = proc(ctx: ^cmd.Ctx) -> bool
-        {
-            if ctx.subcmd == "vs_location"
-            {
-                fmt.printfln("set vintage story location to {}", ctx.args[0])
-            }
-
-            return true
-        }
-    })
+    register_cmds(&handler)
 
     err := cmd.run_cmd(&handler, []string{"config", "vs_location", "~/games/vintagestory"})
 
-    if err != .None
+    // if .CommandFailed let the error handler deal with it
+    if err != .None && err != .CommandFailed
     {
         fmt.eprintln(cmd.get_error_message(err))
     }

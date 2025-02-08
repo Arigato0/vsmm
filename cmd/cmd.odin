@@ -1,11 +1,12 @@
 package cmd
 
 import "core:slice"
+import "core:fmt"
 
 ExecProc :: proc(^Ctx) -> bool
 ErrorProc :: proc(^Ctx)
 
-RunError :: enum 
+RunError :: enum
 {
     None,
     NoCommand,
@@ -51,7 +52,7 @@ Cmd :: struct
 {
     name: string,
     description: string,
-    subcmds: []string,
+    subcmds: [dynamic]string,
     exec: ExecProc
 }
 
@@ -63,20 +64,20 @@ default_help_cmd :: proc(using ctx: ^Ctx) -> bool
 
 default_error_handler :: proc(using ctx: ^Ctx)
 {
-
+    fmt.eprintln("[Command failed]", ctx.failure_reason)
 }
 
-init :: proc(using handler: ^Handler)
+init :: proc(handler: ^Handler)
 {
-    cmds = make(map[string]Cmd)
+    handler.cmds = make(map[string]Cmd)
 
-    if help_cmd == nil
+    if handler.help_cmd == nil
     {
-        help_cmd = default_help_cmd
+        handler.help_cmd = default_help_cmd
     }
-    if error_handler == nil
+    if handler.error_handler == nil
     {
-        error_handler = default_error_handler
+        handler.error_handler = default_error_handler
     }
 }
 
@@ -85,25 +86,25 @@ deinit :: proc(using handler: ^Handler)
     delete(cmds)
 }
 
-add_cmd :: proc(using handler: ^Handler, cmd: Cmd)
+add_cmd :: proc(handler: ^Handler, cmd: Cmd)
 {
     assert(cmd.name != "", "command name must not be empty")
 
-    cmds[cmd.name] = cmd
+    handler.cmds[cmd.name] = cmd
 }
 
-remove_cmd :: proc(using handler: ^Handler, name: string)
+remove_cmd :: proc(handler: ^Handler, name: string)
 {
     assert(name != "", "command name must not be empty")
 
-    cmd, exists := cmds[name]
+    cmd, exists := handler.cmds[name]
 
     if !exists
     {
         return
     }
 
-    delete_key(&cmds, name)
+    delete_key(&handler.cmds, name)
 }
 
 @(private)
@@ -117,7 +118,7 @@ eval_subcmds :: proc(cmd: Cmd, args: []string) -> bool
     subcmd := args[0]
 
     // performance doesnt matter here so this is fine
-    _, found := slice.linear_search(cmd.subcmds, subcmd)
+    _, found := slice.linear_search(cmd.subcmds[:], subcmd)
 
     return found
 }
@@ -125,6 +126,7 @@ eval_subcmds :: proc(cmd: Cmd, args: []string) -> bool
 run_cmd :: proc(handler: ^Handler, args: []string) -> RunError
 {
     args := args
+
     if len(args) == 0
     {
         return .NoCommand
@@ -161,5 +163,11 @@ run_cmd :: proc(handler: ^Handler, args: []string) -> RunError
 
     ok := cmd.exec(&ctx)
 
-    return .None if ok else .CommandFailed
+    if !ok 
+    {
+        handler.error_handler(&ctx)
+        return .CommandFailed
+    }
+
+    return .None
 }
